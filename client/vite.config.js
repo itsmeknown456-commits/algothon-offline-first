@@ -1,10 +1,8 @@
-import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react';
+import { defineConfig } from 'vite'
+import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
-  plugins: [react()],
-  build: {
-    outDir: 'dist',
-    emptyOutDir: true,
-  },
-});
+  esbuild: { jsx: 'automatic' },
+  plugins: [VitePWA({ registerType: 'autoUpdate', manifest: false })],
+  server: { proxy: { '/sync': 'http://localhost:3000', '/health': 'http://localhost:3000' } }
+})
