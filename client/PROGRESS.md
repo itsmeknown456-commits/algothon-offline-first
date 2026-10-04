@@ -1,6 +1,6 @@
-Current step: 12 of 12
+Current step: Follow-up task 7 of 7 (complete)
 Next file: Complete
-Decisions made: PWA icon files are omitted because the contract provides no icon assets.
+Decisions made: Follow-up adds generated PWA icons; mock server stays in-memory and API per-op results use HTTP 200.
 
 ## File 1: client scaffold + package.json deps + vite.config.js  [DONE]
 - What was built: Added the Vite React scaffold directories and dependencies for Dexie, React hooks, and PWA support. Configured service worker generation and /sync and /health proxying to localhost:3000.
@@ -80,3 +80,57 @@ Decisions made: PWA icon files are omitted because the contract provides no icon
 - How it was tested: Reloaded the app and confirmed FieldSync controls render and show Offline; no new runtime errors.
 - Known issues: Backend health and sync requests still require the server at localhost:3000.
 
+
+## Follow-up task 1: Styling  [DONE]
+- What was built: Added the responsive client stylesheet and imported it from the React entry point; covers layout, form, task cards, connectivity, badges, conflicts, timeline, contrast, and keyboard focus.
+- Exports / functions other files depend on: client/src/styles.css.
+- How it was tested: Reviewed selectors against JSX classes and responsive rules; build is scheduled in task 3.
+- Known issues: none
+
+## Follow-up task 2: PWA icons  [DONE]
+- What was built: Added 192px, 512px, and 512px maskable FS PNG icons and referenced each exact file in the web manifest.
+- Exports / functions other files depend on: client/public/icons/fieldsync-192.png, fieldsync-512.png, fieldsync-maskable-512.png.
+- How it was tested: Generated with the already-installed Pillow library and checked manifest paths and PNG dimensions.
+- Known issues: none
+
+## Follow-up task 3: Offline verification  [DONE]
+- What was built: Kept create payloads free of local sync fields; added exponential health retry and in-flight request abort for simulated offline; kept pending/failed/conflict local tasks safe from pulls; rebased ordered queued edits after each server version; fixed timeline updates and offline manual retry.
+- Exports / functions other files depend on: db CRUD and sync helpers; existing sync engine exports remain stable.
+- How it was tested: Reviewed all client data paths and service worker configuration; `npm run build` passed and generated the PWA service worker with four precache entries.
+- Known issues: Sync behavior still needs validation against the teammate's real backend contract implementation.
+
+## Follow-up task 4: API contract  [DONE]
+- What was built: Documented GET /health, POST /sync/push, and GET /sync/pull, including localhost:3000 proxying, task records, operation payloads, status codes, cursor behavior, and conflict base/server copies.
+- Exports / functions other files depend on: docs/API.md.
+- How it was tested: Compared each request path and body to client/src/syncEngine.js and client/vite.config.js.
+- Known issues: Real server implementation must match the documented HTTP 200 per-op result handling.
+
+## Follow-up task 5: Mock server  [DONE]
+- What was built: Added a Node built-in HTTP mock API for health, push, and cursor pull endpoints, with idempotency, version conflicts, and a one-shot environment-controlled conflict; documented startup.
+- Exports / functions other files depend on: tools/mock-server/server.js; tools/mock-server/README.md.
+- How it was tested: Smoke-checked health, forced conflict and base record, conflict resolution apply, duplicate op handling, and cursor pull against the documented API.
+- Known issues: Mock records reset when the process restarts.
+
+## Follow-up task 6: Architecture diagram  [DONE]
+- What was built: Added a standalone architecture SVG and PNG covering React UI, connectivity, Dexie task/outbox/meta tables, service worker, sync API, and conflict resolution flow.
+- Exports / functions other files depend on: docs/architecture.svg; docs/architecture.png.
+- How it was tested: Inspected the PNG rendering and verified both image files were generated.
+- Known issues: none
+
+## Follow-up task 7: Root README  [DONE]
+- What was built: Replaced the root README with the problem description, features, stack, architecture image, client and mock setup, offline/sync/conflict demos, folder map, team roles, and explicit TODOs.
+- Exports / functions other files depend on: README.md.
+- How it was tested: Checked setup commands and linked API/architecture paths against created files.
+- Known issues: Real backend setup, hosted demo link, and screenshots remain TODOs as requested.
+
+## Offline verification follow-up: PWA asset precache  [DONE]
+- What was built: Expanded the Workbox precache pattern to include the web manifest and PNG icons alongside app HTML, CSS, and JavaScript.
+- Exports / functions other files depend on: Updated client/vite.config.js PWA workbox configuration.
+- How it was tested: Rebuilding and checking the generated service worker precache list.
+- Known issues: none
+
+## Offline verification follow-up: Sync local writes  [DONE]
+- What was built: Create, edit, delete, and conflict resolution now start sync in the background after the local IndexedDB write, so connected tasks do not wait for a manual sync click.
+- Exports / functions other files depend on: Existing syncNow export used by task and conflict components.
+- How it was tested: Final `npm run build` passed after wiring local writes to start background sync.
+- Known issues: none

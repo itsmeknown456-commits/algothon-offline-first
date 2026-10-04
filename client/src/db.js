@@ -7,7 +7,8 @@ const op = (task, type, changes) => ({ opId: crypto.randomUUID(), entityId: task
 
 export async function addTask(input) {
   const task = { id: crypto.randomUUID(), title: input.title, status: input.status || 'todo', priority: input.priority || 'low', assignee: input.assignee || '', notes: input.notes || '', version: 0, deleted: false, updatedAt: new Date().toISOString(), syncState: 'pending' }
-  await db.transaction('rw', db.tasks, db.outbox, async () => { await db.tasks.add(task); await db.outbox.add(op(task, 'create', task)) })
+  const { syncState, ...changes } = task
+  await db.transaction('rw', db.tasks, db.outbox, async () => { await db.tasks.add(task); await db.outbox.add(op(task, 'create', changes)) })
   return task
 }
 
@@ -37,6 +38,11 @@ export const getOutbox = () => db.outbox.orderBy('seq').toArray()
 export const getMeta = async key => (await db.meta.get(key))?.value
 export const setMeta = (key, value) => db.meta.put({ key, value })
 export const removeOutbox = opId => db.outbox.where('opId').equals(opId).delete()
+export const clearOutbox = entityId => db.outbox.where('entityId').equals(entityId).delete()
+export async function rebaseOutbox(entityId, version) {
+  const items = await db.outbox.where('entityId').equals(entityId).sortBy('seq')
+  for (const item of items) { await db.outbox.update(item.seq, { baseVersion: version }); version++ }
+}
 export const setSyncState = (id, syncState) => db.tasks.update(id, { syncState })
 export const getTask = id => db.tasks.get(id)
 export const applyPulledTask = task => db.tasks.put({ ...task, syncState: 'synced' })

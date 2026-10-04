@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="900" viewBox="0 0 1440 900" role="img" aria-labelledby="title desc">
+  <title id="title">FieldSync architecture</title>
+  <desc id="desc">Offline-first React interface backed by IndexedDB and synchronized through a connectivity-aware sync engine to the backend API.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#426653"/></marker>
+    <marker id="arrow-purple" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#7750a5"/></marker>
+    <style>
+      text{font-family:Arial,sans-serif;fill:#17251d}.title{font-size:34px;font-weight:700}.subtitle{font-size:16px;fill:#526158}.group{font-size:20px;font-weight:700}.box-title{font-size:17px;font-weight:700}.body{font-size:14px;fill:#405146}.label{font-size:13px;fill:#526158}.outline{fill:#fff;stroke:#cbd8ce;stroke-width:2}.client{fill:#f5faf6;stroke:#a7c9b3}.core{fill:#f3f7fc;stroke:#b5c7dc}.api{fill:#f5f2fa;stroke:#c9b5dc}.edge{fill:#fff;stroke:#cbd8ce;stroke-width:1.5}.line{fill:none;stroke:#426653;stroke-width:2.5;marker-end:url(#arrow)}.conflict{fill:none;stroke:#7750a5;stroke-width:2.5;stroke-dasharray:8 6;marker-end:url(#arrow-purple)}
+    </style>
+  </defs>
+  <rect width="1440" height="900" fill="#f2f6f2"/>
+  <text x="55" y="56" class="title">FieldSync</text><text x="55" y="86" class="subtitle">Offline-first task tracker · client, local data, synchronization, and API</text>
+  <rect x="40" y="125" width="380" height="720" rx="20" class="client"/><text x="68" y="164" class="group">React client UI</text>
+  <rect x="78" y="190" width="304" height="76" rx="12" class="edge"/><text x="98" y="220" class="box-title">ConnectivityBar</text><text x="98" y="245" class="body">online state · simulate offline · sync now</text>
+  <rect x="78" y="300" width="304" height="118" rx="12" class="edge"/><text x="98" y="331" class="box-title">TaskForm + TaskList</text><text x="98" y="357" class="body">Dexie-only task reads and writes</text><text x="98" y="382" class="body">status edit · soft delete · sync badge</text>
+  <rect x="78" y="450" width="304" height="76" rx="12" class="edge"/><text x="98" y="480" class="box-title">SyncTimeline</text><text x="98" y="505" class="body">subscribes to in-memory sync events</text>
+  <rect x="78" y="558" width="304" height="106" rx="12" fill="#fff8f6" stroke="#d99a90" stroke-width="1.5"/><text x="98" y="589" class="box-title">ConflictResolver</text><text x="98" y="615" class="body">choose mine or server per field</text><text x="98" y="640" class="body">save as update at server version</text>
+  <rect x="78" y="730" width="304" height="78" rx="12" class="edge"/><text x="98" y="760" class="box-title">Service worker</text><text x="98" y="785" class="body">caches app shell for offline load</text>
+  <rect x="465" y="125" width="490" height="720" rx="20" class="core"/><text x="495" y="164" class="group">Local data + sync</text>
+  <rect x="540" y="190" width="340" height="84" rx="12" class="edge"/><text x="560" y="222" class="box-title">Connectivity detection</text><text x="560" y="249" class="body">browser events + GET /health</text>
+  <rect x="525" y="335" width="370" height="150" rx="12" class="edge"/><text x="550" y="369" class="box-title">Sync engine · single flight</text><text x="550" y="398" class="body">ordered POST /sync/push operations</text><text x="550" y="424" class="body">GET /sync/pull?since=cursor</text><text x="550" y="450" class="body">retry backoff · event log · conflict capture</text>
+  <rect x="525" y="548" width="370" height="246" rx="12" class="edge"/><text x="550" y="583" class="box-title">Dexie · IndexedDB</text>
+  <rect x="550" y="608" width="320" height="48" rx="8" fill="#eef6ef" stroke="#cbd8ce"/><text x="566" y="638" class="body">tasks · pending / failed / conflict state</text>
+  <rect x="550" y="669" width="320" height="48" rx="8" fill="#fff4da" stroke="#e2c77c"/><text x="566" y="699" class="body">outbox · ordered ops + baseVersion</text>
+  <rect x="550" y="730" width="320" height="42" rx="8" fill="#f6f4fb" stroke="#d0c4e0"/><text x="566" y="757" class="body">meta · deviceId + pull cursor</text>
+  <rect x="1000" y="255" width="390" height="375" rx="20" class="api"/><text x="1032" y="294" class="group">Backend API · port 3000</text>
+  <rect x="1040" y="326" width="310" height="66" rx="12" class="edge"/><text x="1060" y="354" class="box-title">GET /health</text><text x="1060" y="378" class="body">{ ok: true }</text>
+  <rect x="1040" y="414" width="310" height="84" rx="12" class="edge"/><text x="1060" y="444" class="box-title">POST /sync/push</text><text x="1060" y="471" class="body">applied · duplicate · conflict · error</text>
+  <rect x="1040" y="520" width="310" height="78" rx="12" class="edge"/><text x="1060" y="551" class="box-title">GET /sync/pull</text><text x="1060" y="577" class="body">records + next cursor</text>
+  <path d="M382 228H540" class="line"/><text x="410" y="216" class="label">toggle / sync</text>
+  <path d="M710 274V335" class="line"/><text x="720" y="309" class="label">connectivity</text>
+  <path d="M895 380H980V350H1040" class="line"/><text x="914" y="369" class="label">health</text>
+  <path d="M1040 458H960V410H895" class="line"/><text x="922" y="448" class="label">push</text>
+  <path d="M895 445H980V558H1040" class="line"/><text x="912" y="538" class="label">pull</text>
+  <path d="M710 485V548" class="line"/><text x="720" y="523" class="label">read / apply</text>
+  <path d="M382 355H450V632H525" class="line"/><text x="394" y="343" class="label">local CRUD</text>
+  <path d="M525 480H440V492H382" class="line"/><text x="420" y="470" class="label">log</text>
+  <path d="M525 446H445V610H382" class="conflict"/><text x="390" y="585" class="label" fill="#7750a5">conflict flow</text>
+  <path d="M382 628H478V694H525" class="conflict"/><text x="397" y="680" class="label" fill="#7750a5">resolved update</text>
+  <path d="M230 730V694" class="line"/><text x="244" y="716" class="label">cached shell</text>
+  <text x="1000" y="686" class="subtitle">Conflict: server returns current record + common base;</text><text x="1000" y="711" class="subtitle">resolver writes chosen fields back to the local outbox.</text>
+</svg>
