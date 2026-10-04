@@ -11,6 +11,10 @@ let timer
 const requests = new Set()
 const listeners = new Set()
 const log = []
+const toTask = (task, version = 0) => {
+  const updatedAt = task.updatedAt ?? task.updated_at
+  return { id: task.id, title: task.title, status: ({ pending: 'todo', completed: 'done' })[task.status] || task.status || 'todo', priority: task.priority || 'low', assignee: task.assignee || '', notes: task.notes ?? task.description ?? '', version: Number(task.version ?? version), deleted: Boolean(task.deleted ?? task.deleted_at), updatedAt: updatedAt == null ? new Date().toISOString() : Number.isFinite(Number(updatedAt)) && updatedAt !== '' ? new Date(Number(updatedAt)).toISOString() : updatedAt }
+}
 const publish = () => listeners.forEach(fn => fn([...log]))
 const emit = item => { log.unshift({ ...item, time: new Date().toISOString() }); log.splice(100); publish() }
 export const getSyncLog = () => [...log]
@@ -97,11 +101,23 @@ async function sync() {
     await setMeta('deviceId', deviceId)
     for (const item of await getOutbox()) {
       if (!isOnline()) return
-      const response = await request('/sync/push', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ deviceId, ops: [{ opId: item.opId, entityId: item.entityId, type: item.type, baseVersion: item.baseVersion, changes: item.changes }] }) })
+      const op = { opId: item.opId, entityId: item.entityId, type: item.type, baseVersion: item.baseVersion, changes: item.changes }
+      const localTask = await getTask(item.entityId)
+      const legacyUpdatedAt = item.changes.updatedAt ?? localTask?.updatedAt ?? new Date().toISOString()
+      const legacy = { ...op, type: item.type.toUpperCase(), data: { ...localTask, ...item.changes, id: item.entityId, description: item.changes.notes ?? localTask?.notes ?? '', updated_at: new Date(legacyUpdatedAt).getTime() } }
+      const response = await request('/sync/push', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ deviceId, ops: [op, legacy] }) })
       if (!response.ok) throw Error('Push failed')
-      const { results } = await response.json()
-      const result = results.find(entry => entry.opId === item.opId)
+      const data = await response.json()
+      const result = data.results?.find(entry => entry.opId === item.opId) || (() => {
+        const conflict = (Array.isArray(data.conflicts) ? data.conflicts.find(entry => entry.id === item.entityId) : null) || (data.conflict && typeof data.conflict === 'object' ? data.conflict : null)
+        const accepted = data.accepted ?? (data.success && data.processedCount > 0)
+        const version = Number(data.version ?? conflict?.serverVersion?.version ?? item.baseVersion + 1)
+        const base = conflict?.baseVersion ?? conflict?.base ?? data.base
+        return { opId: item.opId, status: conflict || data.conflict ? 'conflict' : accepted ? 'applied' : 'error', record: toTask(conflict?.serverVersion ?? conflict?.record ?? data.record ?? { ...item.changes, id: item.entityId, version }, version), base: base ? toTask(base, item.baseVersion) : undefined }
+      })()
       if (!result) throw Error('Missing push result')
+      if (result.record) result.record = toTask(result.record, item.baseVersion + 1)
+      if (result.base) result.base = toTask(result.base, item.baseVersion)
       if (result.status === 'applied' || result.status === 'duplicate') {
         await removeOutbox(item.opId)
         if (result.record) {
@@ -124,17 +140,19 @@ async function sync() {
       }
     }
     if (!isOnline()) return
-    const cursor = await getMeta('cursor') || ''
-    const response = await request(`/sync/pull?since=${encodeURIComponent(cursor)}`)
+    const cursor = String(await getMeta('cursor') || '')
+    const response = await request(`/sync/pull?since=${encodeURIComponent(cursor)}&lastSync=${encodeURIComponent(cursor || '0')}`)
     if (!response.ok) throw Error('Pull failed')
     const data = await response.json()
-    for (const record of data.records) {
-      const local = await getTask(record.id)
+    for (const raw of data.records ?? data.tasks ?? []) {
+      const local = await getTask(raw.id)
+      const record = toTask(raw, local?.version || 0)
       const pending = await db.outbox.where('entityId').equals(record.id).count()
       if (!local || (local.syncState === 'synced' && !pending)) await applyPulledTask(record)
       emit({ type: 'pulled', taskId: record.id })
     }
-    if (data.cursor != null) await setMeta('cursor', data.cursor)
+    const nextCursor = data.cursor ?? data.serverTime
+    if (nextCursor != null) await setMeta('cursor', String(nextCursor))
     retry = 1000
     emit({ type: 'complete' })
   } catch (error) {
