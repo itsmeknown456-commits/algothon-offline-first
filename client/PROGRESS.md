@@ -1,4 +1,4 @@
-Current step: Follow-up task 7 of 7 (complete)
+Current step: Status detection follow-up (complete)
 Next file: Complete
 Decisions made: Follow-up adds generated PWA icons; mock server stays in-memory and API per-op results use HTTP 200.
 
@@ -134,3 +134,9 @@ Decisions made: Follow-up adds generated PWA icons; mock server stays in-memory 
 - Exports / functions other files depend on: Existing syncNow export used by task and conflict components.
 - How it was tested: Final `npm run build` passed after wiring local writes to start background sync.
 - Known issues: none
+
+## Status detection follow-up  [DONE]
+- What was built: Added visible-page health polling every five seconds with a two-second request timeout, paused it for simulated offline, and disabled Sync now whenever status is Offline.
+- Exports / functions other files depend on: Existing connectivity and sync exports; request errors now set shared online state Offline.
+- How it was tested: `npm run build` passed; PWA build generated the service worker with eight precached entries.
+- Known issues: Real backend behavior is not available for a live check.

@@ -1,9 +1,11 @@
 import { applyPulledTask, clearOutbox, db, getMeta, getOutbox, getTask, rebaseOutbox, removeOutbox, setMeta, setSyncState } from './db.js'
 
 let forcedOffline = false
-let online = navigator.onLine
+let online = false
+let healthChecked = false
 let running = null
 let healthCheck = null
+let pollTimer
 let retry = 1000
 let timer
 const requests = new Set()
@@ -17,10 +19,18 @@ export const isOnline = () => online && !forcedOffline
 export const isSimulatedOffline = () => forcedOffline
 
 async function request(url, options) {
-  if (!navigator.onLine || forcedOffline) throw Error(forcedOffline ? 'Simulated offline' : 'Offline')
+  if (!navigator.onLine || forcedOffline) { setOnline(false); throw Error(forcedOffline ? 'Simulated offline' : 'Offline') }
   const controller = new AbortController()
   requests.add(controller)
-  try { return await fetch(url, { ...options, signal: controller.signal }) } finally { requests.delete(controller) }
+  const timeout = setTimeout(() => controller.abort(), 2000)
+  try {
+    const response = await fetch(url, { ...options, signal: controller.signal })
+    if (!response.ok) setOnline(false)
+    return response
+  } catch (error) {
+    setOnline(false)
+    throw error
+  } finally { clearTimeout(timeout); requests.delete(controller) }
 }
 
 function scheduleRetry() {
@@ -38,11 +48,11 @@ function setOnline(value) {
   online = value
   publish()
   if (changed) emit({ type: value ? 'online' : 'offline' })
-  if (value) { clearTimeout(timer); timer = null; retry = 1000; syncNow() }
+  if (value) { clearTimeout(timer); timer = null; retry = 1000; if (changed || !healthChecked) syncNow() }
 }
 
 async function checkHealth() {
-  if (!navigator.onLine || forcedOffline) return setOnline(false)
+  if (!navigator.onLine || forcedOffline) { setOnline(false); healthChecked = true; return }
   if (healthCheck) return healthCheck
   healthCheck = (async () => {
     try {
@@ -57,13 +67,20 @@ async function checkHealth() {
   })()
   await healthCheck
   healthCheck = null
+  healthChecked = true
 }
 
 export function setSimulatedOffline(value) {
   forcedOffline = value
   if (value) { clearTimeout(timer); timer = null; requests.forEach(request => request.abort()); setOnline(false) }
   else checkHealth()
+  updateHealthPolling()
   publish()
+}
+
+function updateHealthPolling() {
+  clearInterval(pollTimer)
+  if (!forcedOffline && document.visibilityState === 'visible') pollTimer = setInterval(checkHealth, 5000)
 }
 
 export function syncNow() {
@@ -129,5 +146,10 @@ async function sync() {
 
 window.addEventListener('online', checkHealth)
 window.addEventListener('offline', () => setOnline(false))
+document.addEventListener('visibilitychange', () => {
+  updateHealthPolling()
+  if (document.visibilityState === 'visible' && !forcedOffline) checkHealth()
+})
+updateHealthPolling()
 checkHealth()
 
