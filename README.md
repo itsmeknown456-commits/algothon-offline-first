@@ -1,106 +1,109 @@
 # FieldSync
 
-FieldSync is an offline-first task tracker built for hackathon problem **ALG-WEB-02**. It keeps task work available in the browser when the connection drops and synchronizes queued changes with a backend when connectivity returns.
+FieldSync is an offline-first task tracker built for hackathon problem **ALG-WEB-02**. Tasks are stored in the browser first, so work remains available when the network drops.
 
-## Problem statement
+## Live Demo
 
-Field workers and distributed teams need to create and update tasks in unreliable network conditions. FieldSync stores tasks locally first, preserves pending changes across reloads, and reconciles version conflicts when a server becomes reachable.
+- [Open the FieldSync live demo](https://fieldsync-offline.netlify.app)
+- Demo videos: [Video 1](https://drive.google.com/file/d/1klp0TYrsgVvT2z36nXF72_8K8AljAWbx/view?usp=drive_link) · 
+[Video 2](https://drive.google.com/file/d/1a_yqnlgwOptYuCf7US-Y3Sxl8r2jjBLd/view?usp=sharing) · 
+[Video 3](https://drive.google.com/file/d/1XGx2uqpIf61EBIh_65eIMFsBJ7naJXac/view?usp=sharing)
+
+## Problem Statement
+
+Field workers and distributed teams need to create and update tasks in unreliable network conditions. FieldSync keeps tasks in browser storage while offline and synchronizes with a locally run backend when connectivity returns.
 
 ## Features
 
-- Create tasks, change task status, and soft-delete tasks.
-- Store task data and an ordered sync outbox in IndexedDB using Dexie.
-- Show connectivity state, simulate offline mode, and manually retry sync.
-- Push operations in order, pull server changes by cursor, and retry network failures with backoff.
-- Resolve conflicts by choosing the local or server value for each differing field.
-- Cache the built app shell with a PWA service worker.
-- Run a local mock API on port 3000 for client demonstrations.
+- Create tasks offline, change their status, and delete them. The current task form does not edit titles or notes after creation.
+- Persist tasks in IndexedDB across page reloads.
+- Show pending and synced task indicators.
+- Simulate offline mode without disconnecting the device.
+- Retry sync after connectivity returns, with network health checks and backoff.
+- Restore server tasks on a fresh client database when the backend is reachable.
+- Install as a Progressive Web App and load the cached app shell offline.
+- Resolve sync conflicts by choosing local or server values for differing fields when the API supplies conflict records.
 
-## Tech stack
+## Deployment Note
 
-React, Vite, JavaScript, Dexie, dexie-react-hooks, vite-plugin-pwa, plain CSS, and a Node built-in HTTP mock server. The client adds no UI or state-management libraries.
+The live demo is the frontend only and is deployed on Netlify. Its offline-first features work in the browser: local IndexedDB storage, adding tasks, changing task status (the available task editing), deleting tasks, persistence across reloads, PWA installation, and the simulate-offline toggle. The sync bar shows **Offline** in the live demo because its backend is not deployed there. Backend sync uses Node.js and SQLite and runs locally through `/health`, `/sync/push`, and `/sync/pull` (the pull route is `/pull` on the mounted sync router); it is demonstrated in the demo videos above.
 
-## Architecture
+## Run Locally
 
-![FieldSync architecture](docs/architecture.png)
+Start the backend from the repository root:
 
-Editable vector: [docs/architecture.svg](docs/architecture.svg).
+```sh
+npm install
+npm start
+```
 
-## Client setup
+The backend listens on port 3000.
 
-From the repository root:
+Start the client in a second terminal:
 
-```powershell
+```sh
 cd client
 npm install
 npm run dev
 ```
 
-Open the local URL Vite prints, usually `http://localhost:5173/`. `npm install` is needed once after checkout. For a production build and service-worker preview:
+Open [http://localhost:5173](http://localhost:5173). Vite proxies `/health` and `/sync` requests to port 3000.
 
-```powershell
-npm run build
-npm run preview
-```
+To run the in-memory mock API instead of the SQLite backend, start it from the repository root:
 
-## Backend setup
-
-**TODO: Add the teammate's backend setup steps and real server launch command.** The client expects the API described in [docs/API.md](docs/API.md), available on port 3000 during development. Until the backend is running, the client correctly reports Offline. Do not implement the teammate-owned `server/` or `shared/` folders from this README.
-
-For a temporary client demo, run the built-in-only mock instead. In a second terminal at the repository root:
-
-```powershell
+```sh
 node tools/mock-server/server.js
 ```
 
-Then run the client as above. The mock keeps data in memory and resets when stopped.
+Use either the backend or the mock on port 3000, not both at once.
 
-## Demo offline mode
+## Tech Stack
 
-1. Open FieldSync, then turn on **Simulate offline**.
-2. Add a task, change its status, or delete it. The task stays in IndexedDB and shows Pending.
-3. Refresh the page. The task remains because the browser database persists across reloads.
-4. Turn **Simulate offline** off. With the mock or real backend running, the client checks `/health`, syncs automatically, and updates the task status.
-5. For the offline app-shell check, load the production preview once, then use browser devtools to switch offline and reload.
+- Client: JavaScript, React 18, Vite 6, Dexie 4, dexie-react-hooks, vite-plugin-pwa, and plain CSS.
+- Backend: Node.js, Express 5, cors, and SQLite through sqlite3.
+- Mock API: Node.js built-in HTTP and URL modules.
+- Backend test files use Jest and Supertest.
 
-## Demo sync and conflict resolution
+The client does not use a UI library or a state-management library.
 
-For normal sync, start `node tools/mock-server/server.js` and the Vite client in separate terminals. Create or edit a task and the client syncs in the background after the local save. **Sync now** manually retries the health check and sync. The mock returns applied results and serves updates from its cursor-based pull endpoint.
+## Demo Offline Mode
 
-To exercise the conflict resolver, start the mock before the client with one forced conflict armed:
+1. Open FieldSync and turn on **Simulate offline**.
+2. Add a task, change its status, or delete it. Local changes appear in IndexedDB and show as pending.
+3. Reload the page; the local task data persists.
+4. Turn **Simulate offline** off. With a backend available locally, the client syncs queued work and updates the task indicator.
+5. To check the offline app shell, open the built app once, switch the browser to offline mode, and reload.
 
-```powershell
-$env:MOCK_FORCE_CONFLICT = "1"
-node tools/mock-server/server.js
-```
+## Demo Sync and Conflict Resolution
 
-Create a new task. The client immediately pushes it and the mock returns a server version and common base on the next pushed operation. Choose **Keep mine** or **Use theirs** for each differing field and save the resolution; the one-shot conflict has been consumed, so the resolving update syncs normally. **Sync now** remains available to trigger a manual retry.
+Run the local backend or mock API, then run the Vite client. Create or update a task and sync runs after the local save. The **Sync now** button triggers a manual sync when online. To demo conflict resolution using the mock server, start it with `MOCK_FORCE_CONFLICT=1`; the next push returns a conflict for the client resolver.
 
-**TODO: Add the hosted demo link.**  
-**TODO: Add screenshots of the task list, offline state, and conflict resolver.**
+The actual backend API is described in [docs/API.md](docs/API.md). The architecture is shown below.
 
-## Folder structure
+![FieldSync architecture](docs/architecture.png)
+
+Editable vector: [docs/architecture.svg](docs/architecture.svg).
+
+## Repository
+
+[GitHub repository](https://github.com/itsmeknown456-commits/algothon-offline-first)
+
+## Folder Structure
 
 ```text
 hackathon/
 ├── client/                 # React/Vite offline-first frontend
 │   ├── public/              # PWA manifest and icons
 │   └── src/                 # App, Dexie database, sync engine, components, styles
-├── docs/                    # Client API contract and architecture diagrams
+├── docs/                    # Backend API documentation and architecture diagrams
 ├── tools/mock-server/       # Local Node mock API
-├── server/                  # TODO: teammate-owned backend
-├── shared/                  # TODO: teammate-owned shared contract/code
+├── server/                  # Express and SQLite backend
+├── shared/                  # Shared backend code
 ├── README.md
 └── .gitignore
 ```
 
-## Team roles
+## Team Roles
 
-- **Client/frontend (Rahul):** React interface, IndexedDB persistence, sync behavior, PWA shell, and client documentation.
-- **Server/shared (teammate):** Real API implementation and shared code. The teammate's server should follow [docs/API.md](docs/API.md).
-
-## TODOs
-
-- **TODO: Add real backend setup and launch instructions.**
-- **TODO: Add the hosted demo link.**
-- **TODO: Add screenshots.**
+- **Client/frontend:** React interface, IndexedDB persistence, sync behavior, PWA shell, and client documentation.
+- **Server/shared:** Express API, SQLite persistence, and shared server code.
